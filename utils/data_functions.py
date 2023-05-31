@@ -1,6 +1,8 @@
 import os
 from PIL import Image
 import shutil
+import labelme
+import base64
 directory = "/home/emir/Desktop/dev/Inovako_dataset_fully/"
 classes = ["plane", "elephant", "dinosaur"]
 
@@ -91,10 +93,51 @@ def split_dataset(train_dest, test_dest, split_rate=1/8):
                 file_count += 1
     # print(f"file count is {file_count}")
     assert file_count * 2 == len(os.listdir(train_dest)) + len(os.listdir(test_dest))
-            
+    
+import json
+
+def fix_image_paths(fix_dir):
+    for dir in os.listdir(fix_dir):
+        if dir[-4:] == "json":
+            json_file = fix_dir + dir
+            print(f"json file to read {json_file}")
+            with open(json_file, "r") as js:
+                json_data = json.load(js)
+            # print(f"json_data {json_data}")
+            print(f"json_file {json_file}")
+            print(f"jason_data before {json_data['imagePath']}")
+            json_data['imagePath'] = "./" + dir[:-4] + "jpg"
+            print(f"jason_data after {json_data['imagePath']}")
+            with open(json_file, "w") as j_file:
+                json.dump(json_data, j_file, indent=4)
+def fix_image_data(fix_dir):
+    for dir in os.listdir(fix_dir):
+        if dir[-4:] == "json":
+            json_file = fix_dir + dir
+            img_path = fix_dir + dir[:-4] + "jpg"
+            print(f"what is img_path {img_path}")
+            print(f"json file to read {json_file}")
+            with open(json_file, "r") as js:
+                json_data = json.load(js)
+            # print(f"json_data {json_data}")
+            print(f"json_file {json_file}")
+            print(f"jason_data before {json_data['imageData']}")
+            data = labelme.LabelFile.load_image_file(img_path)
+            image_data = base64.b64encode(data).decode('utf-8')
+            json_data['imageData'] = image_data
+            print(f"jason_data after {json_data['imageData']}")
+            with open(json_file, "w") as j_file:
+                json.dump(json_data, j_file, indent=4)
 
 if __name__ == "__main__":
     # print(test_dataset(640))
-    # move_annotat"ions()
-    split_dataset(directory+"train/", directory+"test/")
     # move_annotations()
+    # split_dataset(directory+"train/", directory+"test/")
+    train_dir = "/home/emir/Desktop/dev/temp_dataset/train/labels/"
+    test_dir = "/home/emir/Desktop/dev/temp_dataset/train/images/"
+    print(len(os.listdir(test_dir)))
+    print(len(os.listdir(train_dir)))
+    # fix_image_paths(train_dir)
+    # fix_image_paths(test_dir)
+    # fix_image_data(train_dir)
+    # fix_image_data(test_dir)

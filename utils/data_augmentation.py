@@ -100,9 +100,6 @@ def augmentation():
                 convert_json(polygon=augmented_img[1], image_path=dir, filename=f"{train_dir}image_{file_count}.json")
                 file_count += 1
             
-        
-        
-
 if __name__ == "__main__":
     # augmentation()
     train_dir = dataset_dir + "train/"

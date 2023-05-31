@@ -12,7 +12,7 @@ def make_polys(json_file):
         json_data = json.load(js)
     # print(f"json_data {json_data}")
     polys = []
-
+    image_path = json_data['imagePath']
     for shape in json_data['shapes']:
         # This assert might be overkill but better safe that sorry ...
         assert shape['shape_type'] == "polygon"
@@ -20,7 +20,7 @@ def make_polys(json_file):
 
     img_shape = (json_data['imageHeight'], json_data['imageWidth'], 3)
     polys_oi = PolygonsOnImage(polys, shape=img_shape)
-    return(polys_oi)
+    return(polys_oi), image_path
 
 def convert_json(polygon, image_path):
     polys = polygon.polygons
@@ -51,19 +51,41 @@ def convert_json(polygon, image_path):
     with open("output.json", "w") as json_file:
         json_file.write(json_data)
 
-my_augmenter = iaa.Sequential([
-    iaa.GaussianBlur((0.1, 5)),
+augmenter = iaa.Sequential([ # TODO this is going to be changed
     iaa.Fliplr(0.5),
     iaa.Flipud(0.5),
-    iaa.Rotate((-45,45))])
+    iaa.Rotate((-45,45)),
+    iaa.Crop(percent=(0, 0.1)),
+    iaa.LinearContrast((0.75, 1.5)),
+    iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255), per_channel=0.5),
+    iaa.Multiply((0.8, 1.2), per_channel=0.2),
+    iaa.Affine(
+        scale={"x": (0.8, 1.2), "y": (0.8, 1.2)},
+        translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
+        rotate=(-25, 25),
+        shear=(-8, 8)
+    )])
 
-augmented = my_augmenter(image = ex_img, polygons = polys_oi)
-[type(x) for x in augmented]
-convert_json(augmented[1], "../plane/image_0.jpg")
-cv2.imwrite("original_img.png",augmented[0])
+
+ex_img = cv2.imread(dataset_dir+"plane/image_0.jpg")
+polys, image_path = make_polys(dataset_dir+"plane/image_0.json")
+
+augmented = augmenter(image = ex_img, polygons = polys)
+# [type(x) for x in augmented]
+convert_json(augmented[1], image_path)
+cv2.imwrite("original_img.jpg", ex_img)
+cv2.imwrite("augmented_img.jpg", augmented[0])
+output_segmentation = augmented[1].draw_on_image(augmented[0])
+print(augmented[1])
+cv2.imwrite("augmented_output.jpg", output_segmentation)
+created_polys, new_img_path = make_polys("./output.json")
+new_out = created_polys.draw_on_image(augmented[0])
+cv2.imwrite("new_created_json.jpg", new_out)
+print(f"image paths of original: {image_path} new_image_path: {new_img_path}")
+
 # [<class 'numpy.ndarray'>, <class 'imgaug.augmentables.polys.PolygonsOnImage'>]
 # So you can make a bunch of augmented image/polygon pairs
-augmented_list = [my_augmenter(image = ex_img, polygons = polys_oi) for _ in range(10)]
+augmented_list = [augmenter(image = ex_img, polygons = polys) for _ in range(20)]
 # Now we just make the overlay for viz purposes
-overlaid_images = [polys.draw_on_image(img) for img, polys in augmented_list]
-cv2.imwrite("augmented_quokka_polys.png", cv2.hconcat(overlaid_images))
+concat_augmented = [polys.draw_on_image(img) for img, polys in augmented_list]
+cv2.imwrite("concat_new.png", cv2.hconcat(concat_augmented))

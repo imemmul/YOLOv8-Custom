@@ -22,7 +22,7 @@ def make_polys(json_file):
     polys_oi = PolygonsOnImage(polys, shape=img_shape)
     return(polys_oi), image_path
 
-def convert_json(polygon, image_path):
+def convert_json(polygon, image_path, filename):
     polys = polygon.polygons
     h, w, _ = polygon.shape
     print(f"image_data {h}x{w}x{_}")
@@ -48,7 +48,7 @@ def convert_json(polygon, image_path):
         }
         labelme_data["shapes"].append(shape)
     json_data = json.dumps(labelme_data, indent=4)
-    with open("output.json", "w") as json_file:
+    with open(filename, "w") as json_file:
         json_file.write(json_data)
 
 augmenter = iaa.Sequential([ # TODO this is going to be changed
@@ -66,26 +66,44 @@ augmenter = iaa.Sequential([ # TODO this is going to be changed
         shear=(-8, 8)
     )])
 
-
-ex_img = cv2.imread(dataset_dir+"plane/image_0.jpg")
-polys, image_path = make_polys(dataset_dir+"plane/image_0.json")
-
-augmented = augmenter(image = ex_img, polygons = polys)
 # [type(x) for x in augmented]
-convert_json(augmented[1], image_path)
-cv2.imwrite("original_img.jpg", ex_img)
-cv2.imwrite("augmented_img.jpg", augmented[0])
-output_segmentation = augmented[1].draw_on_image(augmented[0])
-print(augmented[1])
-cv2.imwrite("augmented_output.jpg", output_segmentation)
-created_polys, new_img_path = make_polys("./output.json")
-new_out = created_polys.draw_on_image(augmented[0])
-cv2.imwrite("new_created_json.jpg", new_out)
-print(f"image paths of original: {image_path} new_image_path: {new_img_path}")
+# convert_json(augmented[1], image_path)
+# cv2.imwrite("original_img.jpg", ex_img)
+# cv2.imwrite("augmented_img.jpg", augmented[0])
+# output_segmentation = augmented[1].draw_on_image(augmented[0])
+# print(augmented[1])
+# cv2.imwrite("augmented_output.jpg", output_segmentation)
+# created_polys, new_img_path = make_polys("./output.json")
+# new_out = created_polys.draw_on_image(augmented[0])
+# cv2.imwrite("new_created_json.jpg", new_out)
+# print(f"image paths of original: {image_path} new_image_path: {new_img_path}")
 
 # [<class 'numpy.ndarray'>, <class 'imgaug.augmentables.polys.PolygonsOnImage'>]
 # So you can make a bunch of augmented image/polygon pairs
-augmented_list = [augmenter(image = ex_img, polygons = polys) for _ in range(20)]
-# Now we just make the overlay for viz purposes
-concat_augmented = [polys.draw_on_image(img) for img, polys in augmented_list]
-cv2.imwrite("concat_new.png", cv2.hconcat(concat_augmented))
+# augmented_list = [augmenter(image = ex_img, polygons = polys) for _ in range(20)]
+# # Now we just make the overlay for viz purposes
+# concat_augmented = [polys.draw_on_image(img) for img, polys in augmented_list]
+# cv2.imwrite("concat_new.png", cv2.hconcat(concat_augmented))
+import os
+def augmentation():
+    train_dir = dataset_dir + "train/"
+    file_count = 120
+    for dir in os.listdir(train_dir):
+        if dir[-3:] == "jpg":
+            img_dir = train_dir + dir
+            annot_dir = train_dir + dir[:-3] + "json"
+            img = cv2.imread(img_dir)
+            polys, dump = make_polys(annot_dir)
+            for _ in range(20): # 20 new augmented images for per images
+                augmented_img = augmenter(image=img, polygons=polys)
+                cv2.imwrite(f"{train_dir}image_{file_count}.jpg", augmented_img[0])
+                convert_json(polygon=augmented_img[1], image_path=dir, filename=f"{train_dir}image_{file_count}.json")
+                file_count += 1
+            
+        
+        
+
+if __name__ == "__main__":
+    # augmentation()
+    train_dir = dataset_dir + "train/"
+    print(len(os.listdir(train_dir)))
